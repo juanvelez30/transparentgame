@@ -120,9 +120,7 @@ void saveCurrentBoard(const std::string& filename) {
         return;
     }
 
-    // Guardar número de círculos
     out << circles.size() << "\n";
-    // Guardar datos de cada círculo: row col color.r color.g color.b
     for (auto& c : circles) {
         out << c.row << " " << c.col << " "
             << c.color.r << " " << c.color.g << " " << c.color.b << "\n";
@@ -147,7 +145,7 @@ void loadBoardFromFile(const std::string& filename) {
     connectedCircles.clear();
 
     size_t n;
-    in >> n;  // Leer cuántos círculos hay
+    in >> n;
     for (size_t i = 0; i < n; i++) {
         Circle c;
         in >> c.row >> c.col >> c.color.r >> c.color.g >> c.color.b;
@@ -243,21 +241,16 @@ void cursor_position_callback(GLFWwindow* win, double mx, double my) {
     }
 }
 
-// ---------- NUEVO: Callback de teclado ----------
 void key_callback(GLFWwindow* win, int key, int scancode, int action, int mods) {
-    // Solo procesar al presionar la tecla (no soltar o repetir)
     if (action == GLFW_PRESS) {
         switch (key) {
             case GLFW_KEY_R:
-                // R = Resetear / Generar nuevo tablero
                 generateNewLevel();
                 break;
             case GLFW_KEY_S:
-                // S = Guardar tablero actual
                 saveCurrentBoard("miTablero.txt");
                 break;
             case GLFW_KEY_L:
-                // L = Cargar tablero desde archivo
                 loadBoardFromFile("miTablero.txt");
                 break;
             default:
@@ -268,7 +261,7 @@ void key_callback(GLFWwindow* win, int key, int scancode, int action, int mods) 
 
 // ---------- Funciones de dibujo ----------
 void drawGrid() {
-    glColor3f(1.0f, 1.0f, 1.0f);
+    glColor4f(1.0f, 1.0f, 1.0f, 0.7f);
     glBegin(GL_LINES);
     for (int r = 0; r <= GRID_ROWS; r++) {
         glVertex2f(0.0f, r * CELL_SIZE);
@@ -285,7 +278,7 @@ void drawCircles() {
     for (auto& c : circles) {
         float cx = cellCenterX(c.col);
         float cy = cellCenterY(c.row);
-        glColor3f(c.color.r, c.color.g, c.color.b);
+        glColor4f(c.color.r, c.color.g, c.color.b, 1.0f);
         glBegin(GL_TRIANGLE_FAN);
         glVertex2f(cx, cy);
         for (int i = 0; i <= 36; i++) {
@@ -317,10 +310,13 @@ int main() {
         return -1;
     }
 
+    // Habilitar framebuffer transparente
+    glfwWindowHint(GLFW_TRANSPARENT_FRAMEBUFFER, GLFW_TRUE);
+
     window = glfwCreateWindow(
         GRID_COLS * CELL_SIZE, 
         GRID_ROWS * CELL_SIZE, 
-        "Juego de Conectar - Guardar/Cargar/Reset", 
+        "Juego de Conectar - Fondo Translúcido", 
         nullptr, 
         nullptr
     );
@@ -331,37 +327,34 @@ int main() {
     }
 
     glfwMakeContextCurrent(window);
+    // Restablecemos todos los callbacks para que se mantengan las funcionalidades
+    glfwSetKeyCallback(window, key_callback);
     glfwSetMouseButtonCallback(window, mouse_button_callback);
     glfwSetCursorPosCallback(window, cursor_position_callback);
-    glfwSetKeyCallback(window, key_callback); // <--- IMPORTANTE
 
-    // Configuración de la proyección
-    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+    // Configurar blending para transparencia
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+    // Fondo translúcido (negro 30% de opacidad)
+    glClearColor(0.0f, 0.0f, 0.0f, 0.3f);
+
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
-    glOrtho(
-        0.0, GRID_COLS * CELL_SIZE,  // left, right
-        GRID_ROWS * CELL_SIZE, 0.0,  // bottom, top
-        -1.0, 1.0                    // near, far
-    );
+    glOrtho(0.0, GRID_COLS * CELL_SIZE, GRID_ROWS * CELL_SIZE, 0.0, -1.0, 1.0);
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
 
-    // Primer nivel (un par por cada color)
     generateNewLevel();
 
-    // Bucle principal
     while (!glfwWindowShouldClose(window)) {
         glClear(GL_COLOR_BUFFER_BIT);
-
         drawGrid();
         drawCircles();
 
-        // Dibuja las rutas confirmadas
         for (auto& path : confirmedPaths) {
             drawPath(path);
         }
-        // Dibuja el camino que se está arrastrando (si existe)
         if (!activePath.cells.empty()) {
             drawPath(activePath);
         }
@@ -373,6 +366,3 @@ int main() {
     glfwTerminate();
     return 0;
 }
-
-
-
